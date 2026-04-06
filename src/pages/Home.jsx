@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import { useAuth } from '../context/AuthContext'
+import { useFavorites } from '../hooks/useFavorites'
 import SearchBar from '../components/SearchBar'
 import TruckCard from '../components/TruckCard'
 
 export default function Home() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { isFavoriteTruck, toggleTruckFavorite } = useFavorites()
+
   const [filters, setFilters] = useState({ name: '', cuisine: '', date: '' })
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
@@ -25,25 +32,13 @@ export default function Home() {
         )
       `)
 
-    if (filters.name) {
-      query = query.ilike('name', `%${filters.name}%`)
-    }
-    if (filters.cuisine) {
-      query = query.ilike('cuisine', `%${filters.cuisine}%`)
-    }
+    if (filters.name) query = query.ilike('name', `%${filters.name}%`)
+    if (filters.cuisine) query = query.ilike('cuisine', `%${filters.cuisine}%`)
 
     const { data, error } = await query
+    if (error) { console.error(error); setLoading(false); return }
 
-    if (error) {
-      console.error(error)
-      setLoading(false)
-      return
-    }
-
-    let trucks = data || []
-
-    // Filter by date and only show active schedules
-    trucks = trucks.map(truck => ({
+    let trucks = (data || []).map(truck => ({
       ...truck,
       schedules: (truck.schedules || []).filter(s => {
         if (s.status !== 'active') return false
@@ -52,13 +47,15 @@ export default function Home() {
       })
     }))
 
-    // If filtering by date, only show trucks that have a schedule that day
-    if (filters.date) {
-      trucks = trucks.filter(t => t.schedules.length > 0)
-    }
+    if (filters.date) trucks = trucks.filter(t => t.schedules.length > 0)
 
     setResults(trucks)
     setLoading(false)
+  }
+
+  async function handleToggleFavorite(truckId) {
+    if (!user) { navigate('/login'); return }
+    await toggleTruckFavorite(truckId)
   }
 
   return (
@@ -66,6 +63,7 @@ export default function Home() {
       <h1 style={{ marginBottom: '0.25rem' }}>Find a Food Truck</h1>
       <p style={{ color: '#888', marginBottom: '2rem' }}>
         Search by name, cuisine, or date to find food trucks near you.
+        {!user && <span> <a href="/login" style={{ color: '#4f46e5' }}>Log in</a> to save favorites.</span>}
       </p>
 
       <SearchBar filters={filters} onChange={setFilters} />
@@ -77,7 +75,13 @@ export default function Home() {
       )}
 
       {results.map(truck => (
-        <TruckCard key={truck.id} truck={truck} schedules={truck.schedules} />
+        <TruckCard
+          key={truck.id}
+          truck={truck}
+          schedules={truck.schedules}
+          isFavorite={isFavoriteTruck(truck.id)}
+          onToggleFavorite={handleToggleFavorite}
+        />
       ))}
     </div>
   )

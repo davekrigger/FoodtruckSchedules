@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-export default function TruckCard({ truck, schedules }) {
+export default function TruckCard({ truck, schedules, isFavorite, onToggleFavorite }) {
   return (
     <div style={{
       border: '1px solid #e0e0e0',
@@ -18,6 +18,20 @@ export default function TruckCard({ truck, schedules }) {
           </h2>
           <p style={{ margin: '0.25rem 0 0', color: '#888', fontSize: '0.9rem' }}>{truck.cuisine}</p>
         </div>
+        <button
+          onClick={() => onToggleFavorite(truck.id)}
+          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '1.5rem',
+            cursor: 'pointer',
+            color: isFavorite ? '#ef4444' : '#ccc',
+            padding: '0.25rem'
+          }}
+        >
+          ♥
+        </button>
       </div>
 
       {schedules && schedules.length > 0 && (
